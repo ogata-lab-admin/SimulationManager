@@ -1,0 +1,112 @@
+
+#include "BasicDataType.idl"
+#include "ExtendedDataTypes.idl"
+
+module ssr {
+  enum RETURN_VALUE {
+    RETVAL_OK,
+    RETVAL_INVALID_PRECONDITION,
+    RETVAL_OBJECT_NOT_FOUND,
+    RETVAL_NOT_IMPLEMENTED,
+    RETVAL_UNKNOWN_ERROR
+  };
+
+  typedef long OBJECT_HANDLE;
+  typedef sequence<string> StringSeq;
+
+  interface Simulator {
+
+    /**
+     */
+    RETURN_VALUE loadProject(in string path);
+
+    /**
+     */
+    RETURN_VALUE start();
+
+    /**
+     */
+    RETURN_VALUE pause();
+
+    /**
+     */
+    RETURN_VALUE resume();
+
+    /**
+     */
+    RETURN_VALUE stop();
+
+    /**
+     */
+    RETURN_VALUE spawnRobotRTC(in string objectName, in string arg);
+
+    /**
+     */
+    RETURN_VALUE spawnRangeRTC(in string objectName, in string arg);
+
+    /**
+     */
+    RETURN_VALUE spawnCameraRTC(in string objectName, in string arg);
+
+    /**
+     */
+    RETURN_VALUE killRobotRTC(in string objectName);
+
+    /**
+     */
+    RETURN_VALUE killAllRobotRTC();
+
+    /**
+     */
+    RETURN_VALUE getObjectPose(in string objectName, out RTC::Pose3D pose);
+
+    /**
+     */
+    RETURN_VALUE setObjectPose(in string objectName, in RTC::Pose3D pose);
+
+    /**
+     */
+    RETURN_VALUE synchronizeRTC(in string rtcFullPath);
+
+    /**
+     */
+    RETURN_VALUE getSynchronizingRTCs(out StringSeq fullPaths);
+
+    /**
+     */
+    RETURN_VALUE getSimulationTimeStep(out float timeStep);
+
+    /**
+     */
+    RETURN_VALUE getSimulationTime(out float time);
+
+    
+  };
+
+
+
+  interface SimulatedRobot {
+    
+    /**
+     */
+    RETURN_VALUE getJointTagNames(out StringSeq tags);
+    
+    /**
+    RETURN_VALUE setJointAngle(in string tag, in double radian);
+
+    RETURN_VALUE setJointVelocity(in string tag, in double radian_per_sec);
+
+    RETURN_VALUE setJointForce(in string tag, in double radian_per_sec_sec);
+
+    RETURN_VALUE setJointAngle(in string tag, out double radian);
+
+    RETURN_VALUE setJointVelocity(in string tag, out double radian_per_sec);
+
+    RETURN_VALUE setJointForce(in string tag, out double radian_per_sec_sec);
+    **/
+
+  };
+  
+};
+
+
