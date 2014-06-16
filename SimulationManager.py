@@ -53,6 +53,7 @@ simulatortest_spec = ["implementation_id", "SimulationManager",
 		 "max_instance",      "1", 
 		 "language",          "Python", 
 		 "lang_type",         "SCRIPT",
+		 "naming.format",    "%n.rtc",
 		 "conf.default.fullpath_to_self", "localhost/SimulationManager0.rtc",
 		 "conf.default.project",   "[]",
 		 "conf.default.rtsystem",   "[]",
@@ -467,9 +468,52 @@ class SimulationManager(OpenRTM_aist.DataFlowComponentBase):
 	def on_stop(self):
 		self._simulator._ptr().stop()
 
-	def on_load(self):
-		self._simulator._ptr().loadProject("/Users/ysuga/Development/rtm/wasanbon/workspace/v_rep_test/URG_TEST.ttt")
+	def on_proj_find(self):
+		sys.stdout.write(' - Finding Project file')
+		import tkFileDialog
+		filename = tkFileDialog.askopenfilename()
+		cwd = os.getcwd()
+		print cwd
+		if filename.startswith(cwd):
+			filename = filename[len(cwd)+1:]
+		if filename:
+			self.loadEntryBuf.set(filename)
+			self._projEntryBuffer.set(filename)
 
+	def on_load(self):
+		self._simulator._ptr().loadProject(self.loadEntryBuf.get())
+
+	def on_save_conf(self):
+		print 'Save configuration to current directory'
+		ns, addr, port = self.get_self_rtc_paths()
+		conf_dictionary = {
+			'conf.default.fullpath_to_self': ns + '/' + addr, 
+			'conf.default.project': self.loadEntryBuf.get(),
+			'conf.default.rtsystem': self.rtsysNameEntryBuffer.get(),
+			'conf.default.robots': self._confRobotsBuffer.get(),
+			'conf.default.cameras': self._confCamerasBuffer.get(),
+			'conf.default.ranges': self._confRangesBuffer.get(),
+			'conf.default.sync_rtcs': self.synchRTCEntryBuffer.get()}
+
+		conf_file_name = 'SimulationManager.conf'
+		if not os.path.isfile(conf_file_name):
+			open(conf_file_name, 'w').close()
+
+		saved_conf = {}
+		os.rename(conf_file_name, conf_file_name + '.bak')
+		with open(conf_file_name + '.bak', 'r') as fin:
+			with open(conf_file_name, 'w') as fout:
+				for line in fin:
+					for key, value in conf_dictionary.items():
+						if line.startswith(key):
+							fout.write(key + ' : ' + value + '\n')
+							saved_conf[key] = value
+						else:
+							fout.write(line)
+				for key, value in conf_dictionary.items():
+					if not key in saved_conf.keys():
+						fout.write(key + ' : ' + value + '\n')
+				
 	def on_spawn_robot(self):
 		self._simulator._ptr().spawnRobotRTC(self.robotEntryBuffer.get(), self.robotArgEntryBuffer.get())
 
@@ -503,85 +547,114 @@ class SimulationManager(OpenRTM_aist.DataFlowComponentBase):
 		rangeRTCs  = {}
 		cameraRTCs = {}
 		otherRTCs = {}
-		clientCorbaNaming = OpenRTM_aist.CorbaNaming(OpenRTM_aist.Manager.instance().getORB(), clientNS)
-		root_cxt = clientCorbaNaming.getRootContext()
+		try:
+			clientCorbaNaming = OpenRTM_aist.CorbaNaming(OpenRTM_aist.Manager.instance().getORB(), clientNS)
+			root_cxt = clientCorbaNaming.getRootContext()
 
-		def parseContext(cxt_str, cxt):
-			objs = []
-			bindingList, bindingIterator = cxt.list(30)
-			for b in bindingList:
-				if b.binding_type == CosNaming.ncontext:
-					child_cxt_str = b.binding_name[0].id + '.' + b.binding_name[0].kind + '/'
-					objs = objs + [cxt_str + o for o in parseContext(child_cxt_str, cxt.resolve(b.binding_name))]
-				elif b.binding_type == CosNaming.nobject:
-					objs.append(cxt_str + b.binding_name[0].id + '.' + b.binding_name[0].kind)
-			return objs
-		
-		rtobjectNames = parseContext("", root_cxt)
-		for rtobjectName in rtobjectNames:
-			obj = clientCorbaNaming.resolve(rtobjectName)
-			if CORBA.is_nil(obj):
-				sys.stdout.write(' - RTObject(%s) not found' % rtobjectName)
-				continue
-			corbaConsumer = OpenRTM_aist.CorbaConsumer()
-			corbaConsumer.setObject(obj)
-			try:
-				prof = corbaConsumer._ptr().get_component_profile()
-				if prof.type_name == 'RobotRTC' and prof.category == 'Simulator':
-					robotRTCs[rtobjectName] = corbaConsumer
-				elif prof.type_name == 'RangeRTC' and prof.category == 'Simulator':
-					rangeRTCs[rtobjectName] = corbaConsumer
-				elif prof.type_name == 'CameraRTC' and prof.category == 'Simulator':
-					cameraRTCs[rtobjectName] = corbaConsumer
-				else:
-					if prof.type_name == 'SimulationManager' and prof.category == 'Simulator':
-						pass
-					else:
-						otherRTCs[clientNS+'/'+rtobjectName] = corbaConsumer
-			except:
-				pass
-		
-		def get_object_profile(rtcs):
-			profile_dic = {}
-			for n, r in rtcs.items():
-				objName = ""
-				arg = ""
+			def parseContext(cxt_str, cxt):
+				objs = []
+				bindingList, bindingIterator = cxt.list(30)
+				for b in bindingList:
+					if b.binding_type == CosNaming.ncontext:
+						child_cxt_str = b.binding_name[0].id + '.' + b.binding_name[0].kind + '/'
+						objs = objs + [cxt_str + o for o in parseContext(child_cxt_str, cxt.resolve(b.binding_name))]
+					elif b.binding_type == CosNaming.nobject:
+						objs.append(cxt_str + b.binding_name[0].id + '.' + b.binding_name[0].kind)
+				return objs
+			
+			rtobjectNames = parseContext("", root_cxt)
+			for rtobjectName in rtobjectNames:
+				obj = clientCorbaNaming.resolve(rtobjectName)
+				if CORBA.is_nil(obj):
+					sys.stdout.write(' - RTObject(%s) not found' % rtobjectName)
+					continue
+				corbaConsumer = OpenRTM_aist.CorbaConsumer()
+				corbaConsumer.setObject(obj)
 				try:
-					for nv in r._ptr().get_component_profile().properties:
-						if nv.name == 'conf.__innerparam.objectName':
-							objName = any.from_any(nv.value, keep_structs=True)
-						elif nv.name == 'conf.__innerparam.argument':
-							arg = any.from_any(nv.value, keep_structs=True)
-					profile_dic[objName] = arg
+					prof = corbaConsumer._ptr().get_component_profile()
+					if prof.type_name == 'RobotRTC' and prof.category == 'Simulator':
+						robotRTCs[rtobjectName] = corbaConsumer
+					elif prof.type_name == 'RangeRTC' and prof.category == 'Simulator':
+						rangeRTCs[rtobjectName] = corbaConsumer
+					elif prof.type_name == 'CameraRTC' and prof.category == 'Simulator':
+						cameraRTCs[rtobjectName] = corbaConsumer
+					else:
+						if prof.type_name == 'SimulationManager' and prof.category == 'Simulator':
+							pass
+						else:
+							ns, path, port = self.get_host_rtc_paths()
+							if ns+'/'+path == clientNS+'/'+rtobjectName:
+								pass
+							else:
+								otherRTCs[clientNS+'/'+rtobjectName] = corbaConsumer
 				except:
 					pass
-			return profile_dic
 
-		self._confRobotsBuffer.set(yaml.dump(get_object_profile(robotRTCs)))
-		self._confRangesBuffer.set(yaml.dump(get_object_profile(rangeRTCs)))
-		self._confCamerasBuffer.set(yaml.dump(get_object_profile(cameraRTCs)))
+					
+		
+			def get_object_profile(rtcs):
+				profile_dic = {}
+				for n, r in rtcs.items():
+					objName = ""
+					arg = ""
+					try:
+						for nv in r._ptr().get_component_profile().properties:
+							if nv.name == 'conf.__innerparam.objectName':
+								objName = any.from_any(nv.value, keep_structs=True)
+							elif nv.name == 'conf.__innerparam.argument':
+								arg = any.from_any(nv.value, keep_structs=True)
+						profile_dic[objName] = arg
+					except:
+						pass
+				return profile_dic
 
-		self.rtcMenu['menu'].delete("0", "end")
-		for r in otherRTCs.keys():
-			self.rtcMenu['menu'].add_command(label=str(r), command= lambda x=str(r): self.synchRTCEntryBuffer.set(x))
-		if len(otherRTCs.keys()) > 0:
-			self.synchRTCEntryBuffer.set(otherRTCs.keys()[0])
-		else:
-			self.synchRTCEntryBuffer.set("")
+			self._confRobotsBuffer.set(yaml.dump(get_object_profile(robotRTCs)))
+			self._confRangesBuffer.set(yaml.dump(get_object_profile(rangeRTCs)))
+			self._confCamerasBuffer.set(yaml.dump(get_object_profile(cameraRTCs)))
+
+			self.rtcMenu['menu'].delete("0", "end")
+			for r in otherRTCs.keys():
+				self.rtcMenu['menu'].add_command(label=str(r), command= lambda x=str(r): self.synchRTCEntryBuffer.set(x))
+
+			if len(otherRTCs.keys()) > 0:
+				self.synchRTCEntryBuffer.set(otherRTCs.keys()[0])
+			else:
+				self.synchRTCEntryBuffer.set("")
 		
 		
-		if self._simulator._ptr():
-			retval, rtcs = self._simulator._ptr().getSynchronizingRTCs()
-			if self._fullpath_to_self[0] in rtcs:
-				rtcs.remove(self._fullpath_to_self[0])
-
-			self._confSyncRTCsBuffer.set(yaml.dump(rtcs))
-		else:
-			self._confSyncRTCsBuffer.set("[]")
+			if self._simulator._ptr():
+				retval, rtcs = self._simulator._ptr().getSynchronizingRTCs()
+				if self._fullpath_to_self[0] in rtcs:
+					rtcs.remove(self._fullpath_to_self[0])
+				ss = yaml.dump(rtcs)
+				if len(rtcs) == 1:
+					ss = '[' + ss + ']'
+				elif len(rtcs) == 0:
+					ss = '[]'
+				self._confSyncRTCsBuffer.set(ss)
+			else:
+				self._confSyncRTCsBuffer.set("[]")
 			
+		except CORBA.TRANSIENT, e:		
+			print 'CORBA.TRANSIENT Exception'
 
+
+	def get_self_rtc_paths(self):
+		selfAddr = self.selfEntryBuffer.get()
+		clientNS = selfAddr.split('/')[0]
+		clientAddr = selfAddr[:selfAddr.rfind(':')][len(clientNS)+1:]
+		if clientNS.find(':') < 0: clientNS = clientNS+':2809'
+		clientPortName = selfAddr.split(':')[1]
+		return clientNS, clientAddr, clientPortName
+
+	def get_host_rtc_paths(self):
+		addr = self.connectEntryBuffer.get()
+		hostNS = addr.split('/')[0]
+		hostAddr   = addr[:addr.rfind(':')][len(hostNS)+1:]
+		if hostNS.find(':') < 0: hostNS = hostNS+':2809'
+		hostPortName   = addr.split(':')[1]
+		return hostNS, hostAddr, hostPortName
 		
-
 	def on_connect(self):
 		addr = self.connectEntryBuffer.get()
 		selfAddr = self.selfEntryBuffer.get()
@@ -653,6 +726,16 @@ class SimulationManager(OpenRTM_aist.DataFlowComponentBase):
 		
 		
 		pass
+
+	def on_save(self):
+		name = self.rtsysNameEntryBuffer.get()
+		print 'Saving ', name
+		p = subprocess.Popen(['rtcryo', self.nsEntryBuffer.get()], stdout=subprocess.PIPE)
+		p.wait()
+		with open(name, "w") as f:
+			f.write(p.stdout.read())
+			f.close()
+			self._sysEntryBuffer.set(name)
 
 	def mainloop(self):
 		self.root = tk.Tk()
@@ -746,17 +829,48 @@ class SimulationManager(OpenRTM_aist.DataFlowComponentBase):
 		synchButton.grid(row=0, column=2)
 		self.synchronizingRTCList = []
 
-		simulationFrame = tk.LabelFrame(root, text="Simulation")
-		simulationFrame.grid(padx=5, pady=5, ipadx=5, ipady=5, row=3, columnspan=1, column=0, sticky=tk.N+tk.E+tk.S+tk.W)
-		loadButton = tk.Button(simulationFrame, text="Load", command=self.on_load)
-		loadButton.pack(side=tk.LEFT)
-		startButton = tk.Button(simulationFrame, text="Start", command=self.on_start)
-		startButton.pack(side=tk.LEFT)
-		stopButton = tk.Button(simulationFrame, text="Stop", command=self.on_stop)
-		stopButton.pack(side=tk.LEFT)
+		### RT System Frame
+		rtsysFrame = tk.LabelFrame(root, text="RT System")
+		rtsysFrame.grid(padx=5, pady=5, ipadx=5, ipady=5, row=3, columnspan=1, column=0, sticky=tk.N+tk.E+tk.S+tk.W)
+		rtsysLabel = tk.Label(rtsysFrame, text="RT System Saver. Push save button after constructing RT-System (using RT-System Editor)", justify=tk.LEFT, anchor=tk.NW)
+		rtsysLabel.grid(row=0, columnspan=4, column=0, sticky=tk.E+tk.W, padx=10, pady=5)
+		nsLabel = tk.Label(rtsysFrame, text="Give Name Server Addresses. Separate with ' '(white space)")
+		nsLabel.grid(row=1, column=0)
+		self.nsEntryBuffer = tk.StringVar()
+		self.nsEntryBuffer.set("localhost:2809")
+		nsEntry = tk.Entry(rtsysFrame, textvariable=self.nsEntryBuffer)
+		nsEntry.grid(row=1, column=1, stick=tk.E+tk.W)
+		rtsysNameLabel = tk.Label(rtsysFrame, text="RT System Profile File Name")
+		rtsysNameLabel.grid(row=2, column=0)
+		self.rtsysNameEntryBuffer = tk.StringVar()
+		self.rtsysNameEntryBuffer.set("rtsystem.xml")
+		rtsysNameEntry = tk.Entry(rtsysFrame, textvariable=self.rtsysNameEntryBuffer)
+		rtsysNameEntry.grid(row=2, column=1, sticky=tk.E+tk.W)
+		rtsysSaveButton = tk.Button(rtsysFrame, text="Save", command=self.on_save)
+		rtsysSaveButton.grid(row=2, column=2)
 
+		### Simuation Menus
+		simulationFrame = tk.LabelFrame(root, text="Simulation")
+		simulationFrame.grid(padx=5, pady=5, ipadx=5, ipady=5, row=4, columnspan=1, column=0, sticky=tk.N+tk.E+tk.S+tk.W)
+		simLabel = tk.Label(simulationFrame, text="Setup Simulation Setting. First, Load project file, then you can get all configuration")
+		simLabel.grid(row=0, column=0, columnspan=4)
+		loadLabel = tk.Label(simulationFrame, text="Simulation Projet File")
+		loadLabel.grid(row=1, column=0)
+		self.loadEntryBuf = tk.StringVar()
+		loadEntry = tk.Entry(simulationFrame, textvariable=self.loadEntryBuf)
+		loadEntry.grid(row=1, column=1, sticky=tk.W+tk.E)
+		projFindButton = tk.Button(simulationFrame, text="...", command=self.on_proj_find)
+		projFindButton.grid(row=1, column=2)
+		loadButton = tk.Button(simulationFrame, text="Load", command=self.on_load)
+		loadButton.grid(row=1, column=3)
+		startButton = tk.Button(simulationFrame, text="Start", command=self.on_start)
+		startButton.grid(row=2, column=0)
+		stopButton = tk.Button(simulationFrame, text="Stop", command=self.on_stop)
+		stopButton.grid(row=3, column=0)
+
+		### Status Informations 
 		statusFrame = tk.LabelFrame(root, text="Status")
-		statusFrame.grid(padx=5, pady=5, ipadx=5, ipady=5, row=0, rowspan=4, column=1, sticky=tk.N+tk.E+tk.S+tk.W)
+		statusFrame.grid(padx=5, pady=5, ipadx=5, ipady=5, row=0, rowspan=5, column=1, sticky=tk.N+tk.E+tk.S+tk.W)
 		statusLabel = tk.Label(statusFrame, text="Status of Simulation. Click Update button to get info.")
 		statusLabel.grid(row=0, column=0, columnspan=2, padx=10, pady=5)
 		
@@ -782,16 +896,35 @@ class SimulationManager(OpenRTM_aist.DataFlowComponentBase):
 		self._confCamerasBuffer.set("")
 		camerasEntry = tk.Entry(statusFrame, textvariable=self._confCamerasBuffer)
 		camerasEntry.grid(row=4, column=1, columnspan=2)
-		
 		syncLabel = tk.Label(statusFrame, text="conf.default.sync_rtcs")
 		syncLabel.grid(row=5, column=0)
 		self._confSyncRTCsBuffer = tk.StringVar()
 		self._confSyncRTCsBuffer.set("")
 		sync_rtcsEntry = tk.Entry(statusFrame, textvariable=self._confSyncRTCsBuffer)
 		sync_rtcsEntry.grid(row=5, column=1, columnspan=2)
+		sysLabel = tk.Label(statusFrame, text="conf.default.rtsystem")
+		sysLabel.grid(row=6, column=0)
+		self._sysEntryBuffer = tk.StringVar()
+		self._sysEntryBuffer.set("")
+		sysEntry = tk.Entry(statusFrame, textvariable=self._sysEntryBuffer)
+		sysEntry.grid(row=6, column=1, columnspan=2)
+
+		projLabel = tk.Label(statusFrame, text="conf.default.project")
+		projLabel.grid(row=7, column=0)
+		self._projEntryBuffer = tk.StringVar()
+		self._projEntryBuffer.set("")
+		projEntry = tk.Entry(statusFrame, textvariable=self._projEntryBuffer)
+		projEntry.grid(row=7, column=1, columnspan=2)
+
+		saveLabel = tk.Label(statusFrame, text="Save Configuration to SimulationManager.conf")
+		saveLabel.grid(row=8, column=0, columnspan=2)
+		saveButton = tk.Button(statusFrame, text="Save", command=self.on_save_conf)
+		saveButton.grid(row=8, column=2, columnspan=1)
+
 
 		self._enableAfterConnectButton = [
-			spawnRobotButton, spawnRangeButton, spawnCameraButton, synchButton ]
+			spawnRobotButton, spawnRangeButton, spawnCameraButton, synchButton,
+			loadButton]
 
 		for b in self._enableAfterConnectButton:
 			b.config(state=tk.DISABLED)
@@ -818,7 +951,7 @@ def MyModuleInit(manager):
 
     # Create a component
     global comp
-    comp = manager.createComponent("SimulationManager")
+    comp = manager.createComponent("SimulationManager?naming.formats=%n.rtc")
 
 def main():
 	mgr = OpenRTM_aist.Manager.init(sys.argv)
