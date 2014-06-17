@@ -61,6 +61,17 @@ simulatortest_spec = ["implementation_id", "SimulationManager",
 		 "conf.default.ranges", "{}",
 		 "conf.default.cameras", "{}", 
 		 "conf.default.sync_rtcs", "[]",
+		 "conf.default.simulation_times", "0",
+		 "conf.default.simulation_end_condition", "timespan",
+                 "conf.default.simulation_end_timespan", "10.0",
+                 "conf.default.simulation_end_rtcpath", "localhost/VREPRTC0.rtc",
+		 "conf.default.simulation_start_on_activated", "false", 
+		 #Widget
+		 "conf.__widget__.simulation_end_condition", "radio", 
+		 "conf.__widget__.simulation_start_on_activated", "radio",
+		 # Constraints
+		 "conf.__constraints__.simulation_end_condition", "timespan,rtcdeactivated,rtcactivated,rtcerror",
+		 "conf.__constraints__.simulation_start_on_activated", "true, false",
 		 ""]
 # </rtc-template>
 
@@ -99,6 +110,11 @@ class SimulationManager(OpenRTM_aist.DataFlowComponentBase):
 		self._cameras = ["{}"]
 		self._ranges = ["{}"]
 		self._sync_rtcs = ["[]"]
+		self._simulation_times = [1]
+		self._simulation_end_condition = ["timespan"]
+		self._simulation_end_timespan = [10.0]
+		self._simulation_end_rtcpath = ["localhost/VREPRTC0.rtc"]
+		self._simulation_start_on_activated = ["false"]
 		# </rtc-template>
 		
 		self._standalone = False
@@ -119,6 +135,11 @@ class SimulationManager(OpenRTM_aist.DataFlowComponentBase):
 		self.bindParameter("cameras", self._cameras, "{}")
 		self.bindParameter("ranges", self._ranges, "{}")
 		self.bindParameter("sync_rtcs", self._sync_rtcs, "[]")
+		self.bindParameter("simulation_times", self._simulation_times, "1")
+		self.bindParameter("simulation_end_condition", self._simulation_end_condition, "timespan")
+		self.bindParameter("simulation_end_timespan", self._simulation_end_timespan, "10.0")
+		self.bindParameter("simulation_end_rtcpath", self._simulation_end_rtcpath, "localhost/VREPRTC0.rtc")
+		self.bindParameter("simulation_start_on_activated", self._simulation_start_on_activated, "false")
 		# Set InPort buffers
 		
 		# Set OutPort buffers
@@ -132,6 +153,9 @@ class SimulationManager(OpenRTM_aist.DataFlowComponentBase):
 		self.addPort(self._simulatorPort)
 
 		self.root = None
+		self._time = 0.0
+		self._timeStep = 0.0
+		self._simulation_turn = 0
 		
 		return RTC.RTC_OK
 	
@@ -189,6 +213,8 @@ class SimulationManager(OpenRTM_aist.DataFlowComponentBase):
 		sys.stdout.write(' - Now Activating Simulation(ec_id=%s)....\n' % ec_id)
 		if ec_id != 0:
 			sys.stdout.write(' -- Extra Execution Context (Maybe synchronized in Simulator) is activated.\n')
+			retval, self._timeStep = self._simulator._ptr().getSimulationTimeStep()
+			retval, self._time = self._simulator._ptr().getSimulationTime()
 			return RTC.RTC_OK
 
 		for i in range(0, 20):
@@ -201,10 +227,10 @@ class SimulationManager(OpenRTM_aist.DataFlowComponentBase):
 		try:
 
 			sys.stdout.write(' - Killing All Simulated RTCs\n')
-			ret = self._simulator._ptr().killAllRobotRTC()
-			if not ret == ssr.RETVAL_OK:
-				sys.stdout.write(' - Failed. ret=%s\n' % ret)
-				return RTC.RTC_ERROR
+			#ret = self._simulator._ptr().killAllRobotRTC()
+			#if not ret == ssr.RETVAL_OK:
+			#	sys.stdout.write(' - Failed. ret=%s\n' % ret)
+			#	return RTC.RTC_ERROR
 
 			sys.stdout.write(' -- Waiting 0.5 seconds\n')
 			for i in range(0, 20):
@@ -347,9 +373,12 @@ class SimulationManager(OpenRTM_aist.DataFlowComponentBase):
 			return RTC.RTC_ERROR
 
 		try:
-			pass
-		        #if not self._simulator._ptr().start() == ssr.RETVAL_OK:
-			#	return RTC.RTC_ERROR
+			print ' - simulation_start_on_activated : ', self._simulation_start_on_activated[0]
+			if self._simulation_start_on_activated[0] == 'true':
+				self._simulation_turn = 0
+				print ' - Starting Simulation.' 
+				if not self._simulator._ptr().start() == ssr.RETVAL_OK:
+					return RTC.RTC_ERROR
 		except Exception, e:
 			sys.stdout.write(' - Failed to start Simulation\n');
 			traceback.print_exc()
@@ -386,7 +415,43 @@ class SimulationManager(OpenRTM_aist.DataFlowComponentBase):
 	#	#
 	def onExecute(self, ec_id):
 		if ec_id != 0:
-			#sys.stdout.write(' - onExecute with ec_id=%s\n' % ec_id)
+			sys.stdout.write(' - exec by %s\n' % ec_id)
+			# "Synchronizing EC"
+			if self._simulation_end_condition[0] == 'timespan':
+				retval, current_time = self._simulator._ptr().getSimulationTime()
+				self._time = self._time + self._timeStep
+				print 'CurrentTime     = ', current_time
+				print 'Calculated Time = ', self._time
+			elif self._simulation_end_condition[0] == 'rtcdeactivated':
+				pass
+			elif self._simulation_end_condition[0] == 'rtcactivated':
+				pass
+			elif self._simulation_end_condition[0] == 'rtcerror':
+				pass
+			else:
+				sys.stdout.write(' -- Error. Unknown End Condition (conf.default.simulation_end_condition=%s)\n' % self._simulation_end_condition)
+				return RTC.RTC_ERROR
+			pass
+		else:
+			if self._simulation_end_timespan[0] < self._time:
+				print ' - Simulation Ends (', self._simulation_turn, '/', self._simulation_times[0]
+				self._time = 0
+				if self._simulation_turn < self._simulation_times[0]:
+					self._simulator._ptr().stop()
+					self._simulation_turn = self._simulation_turn + 1
+					if self._simulation_turn < self._simulation_times[0]:
+						for i in range(0, 5):
+							print ' - Restarting Simulation ...',
+							if self._simulator._ptr().start() == ssr.RETVAL_OK:
+								print 'OK'
+								break
+							else:
+								print 'Failed'
+							if i == 4:
+								print 'Error. Failed %s times.' % (i+1)
+								return RTC.RTC_ERROR
+							time.sleep(3)
+
 			pass
 		return RTC.RTC_OK
 	
@@ -916,10 +981,31 @@ class SimulationManager(OpenRTM_aist.DataFlowComponentBase):
 		projEntry = tk.Entry(statusFrame, textvariable=self._projEntryBuffer)
 		projEntry.grid(row=7, column=1, columnspan=2)
 
+		simTimesLabel = tk.Label(statusFrame, text="conf.default.simulation_times")
+		simTimesLabel.grid(row=8, column=0)
+		self._simTimesEntryBuffer = tk.StringVar()
+		self._simTimesEntryBuffer.set("0")
+		simTimesEntry = tk.Entry(statusFrame, textvariable=self._simTimesEntryBuffer)
+		simTimesEntry.grid(row=8, column=1, columnspan=2)
+
+		simEndConditionLabel = tk.Label(statusFrame, text="conf.default.simulation_end_condition")
+		simEndConditionLabel.grid(row=9, column=0)
+		self._simEndConditionEntryBuffer = tk.StringVar()
+		self._simEndConditionEntryBuffer.set("timespan")
+		simEndConditionEntry = tk.OptionMenu(statusFrame, self._simEndConditionEntryBuffer, "timespan", "rtcactivated", "rtcdeactivated", "rtcerror")
+		simEndConditionEntry.grid(row=9, column=1, columnspan=2)
+
+		simEndTimespanLabel = tk.Label(statusFrame, text="conf.default.simulation_end_timespan")
+		simEndTimespanLabel.grid(row=10, column=0)
+		self._simEndTimespanEntryBuffer = tk.StringVar()
+		self._simEndTimespanEntryBuffer.set("10.0")
+		simEndTimespanEntry = tk.Entry(statusFrame, textvariable=self._simEndTimespanEntryBuffer)
+		simEndTimespanEntry.grid(row=10, column=1, columnspan=2)
+
 		saveLabel = tk.Label(statusFrame, text="Save Configuration to SimulationManager.conf")
-		saveLabel.grid(row=8, column=0, columnspan=2)
+		saveLabel.grid(row=11, column=0, columnspan=2)
 		saveButton = tk.Button(statusFrame, text="Save", command=self.on_save_conf)
-		saveButton.grid(row=8, column=2, columnspan=1)
+		saveButton.grid(row=11, column=2, columnspan=1)
 
 
 		self._enableAfterConnectButton = [
@@ -929,7 +1015,7 @@ class SimulationManager(OpenRTM_aist.DataFlowComponentBase):
 		for b in self._enableAfterConnectButton:
 			b.config(state=tk.DISABLED)
 
-		root.after(3000, self.on_after)
+		#root.after(3000, self.on_after)
 		root.mainloop()
 
 	def on_after(self):

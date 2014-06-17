@@ -144,9 +144,11 @@ class _objref_Simulator (CORBA.Object):
         return _omnipy.invoke(self, "getSynchronizingRTCs", _0_ssr.Simulator._d_getSynchronizingRTCs, args)
 
     def getSimulationTimeStep(self, *args):
+        print 'simulator.getSimulationTimeStep : ', args
         return _omnipy.invoke(self, "getSimulationTimeStep", _0_ssr.Simulator._d_getSimulationTimeStep, args)
 
     def getSimulationTime(self, *args):
+        print 'simulator.getSimulationTime : ', args
         return _omnipy.invoke(self, "getSimulationTime", _0_ssr.Simulator._d_getSimulationTime, args)
 
     __methods__ = ["loadProject", "start", "pause", "resume", "stop", "spawnRobotRTC", "spawnRangeRTC", "spawnCameraRTC", "killRobotRTC", "killAllRobotRTC", "getObjectPose", "setObjectPose", "synchronizeRTC", "getSynchronizingRTCs", "getSimulationTimeStep", "getSimulationTime"] + CORBA.Object.__methods__
