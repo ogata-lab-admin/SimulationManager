@@ -343,7 +343,11 @@ class SimulationManager(OpenRTM_aist.DataFlowComponentBase):
 			if not len(self._rtsystem[0].strip()) == 0 and self._rtsystem[0] != '[]':
 				try:
 					sys.stdout.write(' - Building RT System with %s\n' % self._rtsystem[0])
-					ret = subprocess.call(['rtresurrect', self._rtsystem[0]])
+
+					if sys.platform == 'win32':
+						ret = subprocess.call(['rtresurrect.bat', self._rtsystem[0]])
+					else:
+						ret = subprocess.call(['rtresurrect', self._rtsystem[0]])
 					sys.stdout.write(' -- rtresurrect == %s\n' % ret)
 				except:
 					sys.stdout.write(' -- rtresurrect failed. Retry...\n')
@@ -795,7 +799,10 @@ class SimulationManager(OpenRTM_aist.DataFlowComponentBase):
 	def on_save(self):
 		name = self.rtsysNameEntryBuffer.get()
 		print 'Saving ', name
-		p = subprocess.Popen(['rtcryo', self.nsEntryBuffer.get()], stdout=subprocess.PIPE)
+		if sys.platform == 'win32':
+			p = subprocess.Popen(['rtcryo.bat', self.nsEntryBuffer.get()], stdout=subprocess.PIPE)
+		else:
+			p = subprocess.Popen(['rtcryo', self.nsEntryBuffer.get()], stdout=subprocess.PIPE)
 		p.wait()
 		with open(name, "w") as f:
 			f.write(p.stdout.read())
