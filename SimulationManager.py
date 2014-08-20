@@ -18,7 +18,7 @@ import RTC
 import OpenRTM_aist
 import CORBA, CosNaming
 from omniORB import any
-import rtctree
+# import rtctree
 #sys.path.insert(1, os.path.join(rtctree.__path__[0], 'rtmidl'))
 #import rtshell
 #import OpenRTM__POA
@@ -54,6 +54,7 @@ simulatortest_spec = ["implementation_id", "SimulationManager",
 		 "language",          "Python", 
 		 "lang_type",         "SCRIPT",
 		 "naming.format",    "%n.rtc",
+	         "conf.default.simulation_setup_on_activated", "false",
 		 "conf.default.fullpath_to_self", "localhost/SimulationManager0.rtc",
 		 "conf.default.project",   "[]",
 		 "conf.default.rtsystem",   "[]",
@@ -115,6 +116,7 @@ class SimulationManager(OpenRTM_aist.DataFlowComponentBase):
 		self._simulation_end_timespan = [10.0]
 		self._simulation_end_rtcpath = ["localhost/VREPRTC0.rtc"]
 		self._simulation_start_on_activated = ["false"]
+		self._simulation_setup_on_activated = ["false"]
 		# </rtc-template>
 		
 		self._standalone = False
@@ -140,6 +142,7 @@ class SimulationManager(OpenRTM_aist.DataFlowComponentBase):
 		self.bindParameter("simulation_end_timespan", self._simulation_end_timespan, "10.0")
 		self.bindParameter("simulation_end_rtcpath", self._simulation_end_rtcpath, "localhost/VREPRTC0.rtc")
 		self.bindParameter("simulation_start_on_activated", self._simulation_start_on_activated, "false")
+		self.bindParameter("simulation_setup_on_activated", self._simulation_setup_on_activated, "false")
 		# Set InPort buffers
 		
 		# Set OutPort buffers
@@ -210,6 +213,13 @@ class SimulationManager(OpenRTM_aist.DataFlowComponentBase):
 	#	#
 	#	#
 	def onActivated(self, ec_id):
+		flag = self._simulation_setup_on_activated[0]
+		if flag == 'true' or flag == 'True' or flag == 'TRUE':
+			return self.setup_simulation(ec_id)
+		else:
+			return RTC.RTC_OK
+
+	def setup_simulation(self, ec_id):
 		sys.stdout.write(' - Now Activating Simulation(ec_id=%s)....\n' % ec_id)
 		if ec_id != 0:
 			sys.stdout.write(' -- Extra Execution Context (Maybe synchronized in Simulator) is activated.\n')
@@ -225,8 +235,8 @@ class SimulationManager(OpenRTM_aist.DataFlowComponentBase):
 		print ''
 		sys.stdout.write(' - Staring activation routine\n')
 		try:
-
 			sys.stdout.write(' - Killing All Simulated RTCs\n')
+			#
 			#ret = self._simulator._ptr().killAllRobotRTC()
 			#if not ret == ssr.RETVAL_OK:
 			#	sys.stdout.write(' - Failed. ret=%s\n' % ret)
@@ -550,6 +560,7 @@ class SimulationManager(OpenRTM_aist.DataFlowComponentBase):
 			self._projEntryBuffer.set(filename)
 
 	def on_load(self):
+		print self.loadEntryBuf.get()
 		self._simulator._ptr().loadProject(self.loadEntryBuf.get())
 
 	def on_save_conf(self):
@@ -797,6 +808,7 @@ class SimulationManager(OpenRTM_aist.DataFlowComponentBase):
 		pass
 
 	def on_save(self):
+		import rtctree
 		name = self.rtsysNameEntryBuffer.get()
 		print 'Saving ', name
 		if sys.platform == 'win32':
@@ -812,7 +824,8 @@ class SimulationManager(OpenRTM_aist.DataFlowComponentBase):
 	def mainloop(self):
 		self.root = tk.Tk()
 		root = self.root
-		
+
+		"""
 		startUpFrame = tk.LabelFrame(root, text="StartUp")
 		startUpFrame.grid(padx=5, pady=5, ipadx=5, ipady=5, row=0, column=0, sticky=tk.W+tk.E+tk.N+tk.S)
 		startUpLabel = tk.Label(startUpFrame, text="First, connect to simulationRTC.\nTo know the URI of SimulationRTC, RT-SystemEditor is useful.", anchor=tk.NW, justify=tk.LEFT)
@@ -831,13 +844,16 @@ class SimulationManager(OpenRTM_aist.DataFlowComponentBase):
 		self.selfEntryBuffer.set("localhost/SimulationManager0.rtc:simulator")
 		addressEntry = tk.Entry(startUpFrame, textvariable=self.selfEntryBuffer)
 		addressEntry.grid(row=2, column=1, sticky=tk.W+tk.E)
-
+		"""
 		setupRTCFrame = tk.LabelFrame(root, text="SetupRTC")
 		setupRTCFrame.grid(padx=5, pady=5, row=1, column=0, sticky=tk.N+tk.W+tk.E+tk.S)
 		robotLabel = tk.Label(setupRTCFrame, text="Robot Object Name")
+		
 		_row = 0
+
 		setupRTCLabel = tk.Label(setupRTCFrame, text="Setup RTC in Simulator.\nEnter the object name in Simulator and click Spawn button.\nTo check spawned, use status frame.", justify=tk.LEFT, anchor=tk.NW)
 		setupRTCLabel.grid(row=_row, columnspan=4, column=0, sticky=tk.W+tk.E, padx=10, pady=5)
+
 		_row = 1
 		robotLabel.grid(row=_row, column=0)
 		self.robotEntryBuffer = tk.StringVar()
@@ -1019,8 +1035,8 @@ class SimulationManager(OpenRTM_aist.DataFlowComponentBase):
 			spawnRobotButton, spawnRangeButton, spawnCameraButton, synchButton,
 			loadButton]
 
-		for b in self._enableAfterConnectButton:
-			b.config(state=tk.DISABLED)
+		#for b in self._enableAfterConnectButton:
+		#	b.config(state=tk.DISABLED)
 
 		#root.after(3000, self.on_after)
 		root.mainloop()
