@@ -9,9 +9,12 @@
 
 
 """
-import sys, yaml, os, traceback, subprocess
+import sys, yaml, os, traceback, subprocess, datetime, types
 import time
 sys.path.append(".")
+
+VREP_RTC_PATH='localhost:2809/VREPRTC0.rtc'
+SELF_RTC_PATH='localhost:2809/SimulationManager0.rtc'
 
 # Import RTM module
 import RTC
@@ -56,8 +59,8 @@ simulatortest_spec = ["implementation_id", "SimulationManager",
 		 "naming.format",    "%n.rtc",
 	         "conf.default.simulation_setup_on_activated", "false",
 		 "conf.default.fullpath_to_self", "localhost/SimulationManager0.rtc",
-		 "conf.default.project",   "[]",
-		 "conf.default.rtsystem",   "[]",
+		 "conf.default.project",   "None",
+		 "conf.default.rtsystem",   "None",
 		 "conf.default.robots", "{}",
 		 "conf.default.ranges", "{}",
 		 "conf.default.cameras", "{}", 
@@ -67,12 +70,15 @@ simulatortest_spec = ["implementation_id", "SimulationManager",
                  "conf.default.simulation_end_timespan", "10.0",
                  "conf.default.simulation_end_rtcpath", "localhost/VREPRTC0.rtc",
 		 "conf.default.simulation_start_on_activated", "false", 
+		 "conf.default.simulation_setup_on_activated", "false", 
 		 #Widget
 		 "conf.__widget__.simulation_end_condition", "radio", 
 		 "conf.__widget__.simulation_start_on_activated", "radio",
+		 "conf.__widget__.simulation_setup_on_activated", "radio",
 		 # Constraints
 		 "conf.__constraints__.simulation_end_condition", "timespan,rtcdeactivated,rtcactivated,rtcerror",
 		 "conf.__constraints__.simulation_start_on_activated", "true, false",
+		 "conf.__constraints__.simulation_setup_on_activated", "true, false",
 		 ""]
 # </rtc-template>
 
@@ -255,7 +261,7 @@ class SimulationManager(OpenRTM_aist.DataFlowComponentBase):
 
 		
 		try:
-			if not len(self._project[0].strip()) == 0:
+			if not len(self._project[0].strip()) == 0 and self._project[0] != 'None' and self._project[0] != '[]':
 				sys.stdout.write(' - Opening Project %s\n' % self._project[0])
 				project_file = self._project[0]
 				cwd = os.getcwd()
@@ -330,6 +336,8 @@ class SimulationManager(OpenRTM_aist.DataFlowComponentBase):
 				#return RTC.RTC_ERROR
 
 			sync_rtcs = yaml.load(self._sync_rtcs[0])
+                        if type(sync_rtcs) != types.ListType:
+                                sync_rtcs = [sync_rtcs]
 			if sync_rtcs:
 				for r in sync_rtcs:
 					sys.stdout.write(' - Synchronize Request for RTC(%s)\n' % r)
@@ -348,10 +356,11 @@ class SimulationManager(OpenRTM_aist.DataFlowComponentBase):
 			sys.stdout.flush()
 			time.sleep(0.05)
 		sys.stdout.write('\n')
-		
+		count = 0
 		try:
-			if not len(self._rtsystem[0].strip()) == 0 and self._rtsystem[0] != '[]':
+			while not len(self._rtsystem[0].strip()) == 0 and self._rtsystem[0] != '[]' and self._rtsystem[0] != 'None':
 				try:
+                                        
 					sys.stdout.write(' - Building RT System with %s\n' % self._rtsystem[0])
 
 					if sys.platform == 'win32':
@@ -359,10 +368,18 @@ class SimulationManager(OpenRTM_aist.DataFlowComponentBase):
 					else:
 						ret = subprocess.call(['rtresurrect', self._rtsystem[0]])
 					sys.stdout.write(' -- rtresurrect == %s\n' % ret)
+                                        if ret == 0:
+                                                break
+                                        sys.stdout.write(' -- rtresurrect failed. Retry...\n')
+                                                
 				except:
 					sys.stdout.write(' -- rtresurrect failed. Retry...\n')
 					traceback.print_exc()
 				time.sleep(1.0)
+				count = count + 1
+				if count == 5:
+                                        sys.stdout.write(' -- building system failed. But proceeding setup.....')
+                                        break
 		except Exception ,e:
 			sys.stdout.write(' -- Failed to construct RTCs\n')
 			traceback.print_exc()
@@ -388,7 +405,8 @@ class SimulationManager(OpenRTM_aist.DataFlowComponentBase):
 
 		try:
 			print ' - simulation_start_on_activated : ', self._simulation_start_on_activated[0]
-			if self._simulation_start_on_activated[0] == 'true':
+                        flag = self._simulation_start_on_activated[0]
+			if flag == 'true' or flag == 'True' or flag == 'TRUE' :
 				self._simulation_turn = 0
 				print ' - Starting Simulation.' 
 				if not self._simulator._ptr().start() == ssr.RETVAL_OK:
@@ -551,8 +569,9 @@ class SimulationManager(OpenRTM_aist.DataFlowComponentBase):
 		sys.stdout.write(' - Finding Project file')
 		import tkFileDialog
 		filename = tkFileDialog.askopenfilename()
+		filename = filename.replace('/', '\\')
 		cwd = os.getcwd()
-		print cwd
+		print ""
 		if filename.startswith(cwd):
 			filename = filename[len(cwd)+1:]
 		if filename:
@@ -560,8 +579,20 @@ class SimulationManager(OpenRTM_aist.DataFlowComponentBase):
 			self._projEntryBuffer.set(filename)
 
 	def on_load(self):
-		print self.loadEntryBuf.get()
-		self._simulator._ptr().loadProject(self.loadEntryBuf.get())
+
+		project_file = str(self.loadEntryBuf.get())
+		full_path = os.path.join(os.getcwd(), project_file)
+		if not os.path.isfile(full_path):
+			full_path = project_file
+		if not os.path.isfile(full_path):
+			print 'File not found (%s)' % full_path
+			return
+		print 'Loading Project %s' % full_path
+		print 'type = ', type(full_path)
+		if not self._simulator._ptr().loadProject(full_path) == ssr.RETVAL_OK:
+			print 'Failed to load (%s)' % full_path
+			return
+		print 'Success.'
 
 	def on_save_conf(self):
 		print 'Save configuration to current directory'
@@ -573,14 +604,20 @@ class SimulationManager(OpenRTM_aist.DataFlowComponentBase):
 			'conf.default.robots': self._confRobotsBuffer.get(),
 			'conf.default.cameras': self._confCamerasBuffer.get(),
 			'conf.default.ranges': self._confRangesBuffer.get(),
-			'conf.default.sync_rtcs': self.synchRTCEntryBuffer.get()}
+			'conf.default.sync_rtcs': self.synchRTCEntryBuffer.get(),
+			'conf.default.simulation_start_on_activated' : True,
+			'conf.default.simulation_setup_on_activated' : True,
+			}
 
-		conf_file_name = 'SimulationManager.conf'
+		conf_file_name = 'SimulationManager0.conf'
+		saved_conf = {}
+		backup_file_name = conf_file_name + datetime.datetime.now().strftime('%Y%m%d%H%M%S')
+		if os.path.isfile(conf_file_name):
+			os.rename(conf_file_name, backup_file_name)
 		if not os.path.isfile(conf_file_name):
 			open(conf_file_name, 'w').close()
 
-		saved_conf = {}
-		os.rename(conf_file_name, conf_file_name + '.bak')
+		"""
 		with open(conf_file_name + '.bak', 'r') as fin:
 			with open(conf_file_name, 'w') as fout:
 				for line in fin:
@@ -593,6 +630,11 @@ class SimulationManager(OpenRTM_aist.DataFlowComponentBase):
 				for key, value in conf_dictionary.items():
 					if not key in saved_conf.keys():
 						fout.write(key + ' : ' + value + '\n')
+		"""
+		fout = open(conf_file_name, 'w')
+		for key, value in conf_dictionary.items():
+			fout.write(key + ' : ' + str(value) + '\n')
+		fout.close()
 				
 	def on_spawn_robot(self):
 		self._simulator._ptr().spawnRobotRTC(self.robotEntryBuffer.get(), self.robotArgEntryBuffer.get())
@@ -605,14 +647,17 @@ class SimulationManager(OpenRTM_aist.DataFlowComponentBase):
 
 	def on_synch(self):
 		rtcpath = self.synchRTCEntryBuffer.get()
-		if not self._simulator._ptr().synchronizeRTC(rtcpath) == ssr.RETVAL_OK:
-			sys.stdout.write(' -- Failed')
-			return
+		print rtcpath
+		print type(rtcpath)
+		if not len(rtcpath) == 0:
+			if not self._simulator._ptr().synchronizeRTC(rtcpath) == ssr.RETVAL_OK:
+				sys.stdout.write(' -- Failed')
+				return
 		pass
 
 	def on_update(self):
-		addr = self.connectEntryBuffer.get()
-		selfAddr = self.selfEntryBuffer.get()
+		addr = VREP_RTC_PATH
+		selfAddr = SELF_RTC_PATH
 
 		clientNS = selfAddr.split('/')[0]
 		clientAddr = selfAddr[:selfAddr.rfind(':')][len(clientNS)+1:]
@@ -660,17 +705,23 @@ class SimulationManager(OpenRTM_aist.DataFlowComponentBase):
 						cameraRTCs[rtobjectName] = corbaConsumer
 					else:
 						if prof.type_name == 'SimulationManager' and prof.category == 'Simulator':
+
 							pass
 						else:
+
 							ns, path, port = self.get_host_rtc_paths()
+							print clientNS + '/' + rtobjectName
+							print ns+'/'+path
 							if ns+'/'+path == clientNS+'/'+rtobjectName:
 								pass
 							else:
 								otherRTCs[clientNS+'/'+rtobjectName] = corbaConsumer
 				except:
+					traceback.print_exc()
 					pass
 
-					
+			print robotRTCs
+			print otherRTCs
 		
 			def get_object_profile(rtcs):
 				profile_dic = {}
@@ -720,7 +771,7 @@ class SimulationManager(OpenRTM_aist.DataFlowComponentBase):
 
 
 	def get_self_rtc_paths(self):
-		selfAddr = self.selfEntryBuffer.get()
+		selfAddr = SELF_RTC_PATH
 		clientNS = selfAddr.split('/')[0]
 		clientAddr = selfAddr[:selfAddr.rfind(':')][len(clientNS)+1:]
 		if clientNS.find(':') < 0: clientNS = clientNS+':2809'
@@ -728,7 +779,7 @@ class SimulationManager(OpenRTM_aist.DataFlowComponentBase):
 		return clientNS, clientAddr, clientPortName
 
 	def get_host_rtc_paths(self):
-		addr = self.connectEntryBuffer.get()
+		addr = VREP_RTC_PATH
 		hostNS = addr.split('/')[0]
 		hostAddr   = addr[:addr.rfind(':')][len(hostNS)+1:]
 		if hostNS.find(':') < 0: hostNS = hostNS+':2809'
@@ -821,6 +872,12 @@ class SimulationManager(OpenRTM_aist.DataFlowComponentBase):
 			f.close()
 			self._sysEntryBuffer.set(name)
 
+	def is_need_gui(self):
+		flag = self._simulation_setup_on_activated[0]
+		
+		return  not (flag=='True' or flag=='true' or flag=='TRUE')
+			
+		
 	def mainloop(self):
 		self.root = tk.Tk()
 		root = self.root
@@ -969,38 +1026,38 @@ class SimulationManager(OpenRTM_aist.DataFlowComponentBase):
 		robotsLabel = tk.Label(statusFrame, text="conf.default.robots")
 		robotsLabel.grid(row=2, column=0)
 		self._confRobotsBuffer = tk.StringVar()
-		self._confRobotsBuffer.set("")
+		self._confRobotsBuffer.set("{}")
 		robotsEntry = tk.Entry(statusFrame, textvariable=self._confRobotsBuffer)
 		robotsEntry.grid(row=2, column=1, columnspan=2)
 		rangesLabel = tk.Label(statusFrame, text="conf.default.ranges")
 		rangesLabel.grid(row=3, column=0)
 		self._confRangesBuffer = tk.StringVar()
-		self._confRangesBuffer.set("")
+		self._confRangesBuffer.set("{}")
 		rangesEntry = tk.Entry(statusFrame, textvariable=self._confRangesBuffer)
 		rangesEntry.grid(row=3, column=1, columnspan=2)
 		camerasLabel = tk.Label(statusFrame, text="conf.default.cameras")
 		camerasLabel.grid(row=4, column=0)
 		self._confCamerasBuffer = tk.StringVar()
-		self._confCamerasBuffer.set("")
+		self._confCamerasBuffer.set("{}")
 		camerasEntry = tk.Entry(statusFrame, textvariable=self._confCamerasBuffer)
 		camerasEntry.grid(row=4, column=1, columnspan=2)
 		syncLabel = tk.Label(statusFrame, text="conf.default.sync_rtcs")
 		syncLabel.grid(row=5, column=0)
 		self._confSyncRTCsBuffer = tk.StringVar()
-		self._confSyncRTCsBuffer.set("")
+		self._confSyncRTCsBuffer.set("[]")
 		sync_rtcsEntry = tk.Entry(statusFrame, textvariable=self._confSyncRTCsBuffer)
 		sync_rtcsEntry.grid(row=5, column=1, columnspan=2)
 		sysLabel = tk.Label(statusFrame, text="conf.default.rtsystem")
 		sysLabel.grid(row=6, column=0)
 		self._sysEntryBuffer = tk.StringVar()
-		self._sysEntryBuffer.set("")
+		self._sysEntryBuffer.set("None")
 		sysEntry = tk.Entry(statusFrame, textvariable=self._sysEntryBuffer)
 		sysEntry.grid(row=6, column=1, columnspan=2)
 
 		projLabel = tk.Label(statusFrame, text="conf.default.project")
 		projLabel.grid(row=7, column=0)
 		self._projEntryBuffer = tk.StringVar()
-		self._projEntryBuffer.set("")
+		self._projEntryBuffer.set("None")
 		projEntry = tk.Entry(statusFrame, textvariable=self._projEntryBuffer)
 		projEntry.grid(row=7, column=1, columnspan=2)
 
@@ -1025,10 +1082,17 @@ class SimulationManager(OpenRTM_aist.DataFlowComponentBase):
 		simEndTimespanEntry = tk.Entry(statusFrame, textvariable=self._simEndTimespanEntryBuffer)
 		simEndTimespanEntry.grid(row=10, column=1, columnspan=2)
 
+		simEndRTCPathLabel = tk.Label(statusFrame, text="conf.default.simulation_end_rtcpath")
+		simEndRTCPathLabel.grid(row=11, column=0)
+		self._simEndRTCPathEntryBuffer = tk.StringVar()
+		self._simEndRTCPathEntryBuffer.set("localhost:2809/VREPRTC0.rtc")
+		simEndRTCPathEntry = tk.Entry(statusFrame, textvariable=self._simEndRTCPathEntryBuffer)
+		simEndRTCPathEntry.grid(row=11, column=1, columnspan=2)
+
 		saveLabel = tk.Label(statusFrame, text="Save Configuration to SimulationManager.conf")
-		saveLabel.grid(row=11, column=0, columnspan=2)
+		saveLabel.grid(row=12, column=0, columnspan=2)
 		saveButton = tk.Button(statusFrame, text="Save", command=self.on_save_conf)
-		saveButton.grid(row=11, column=2, columnspan=1)
+		saveButton.grid(row=12, column=2, columnspan=1)
 
 
 		self._enableAfterConnectButton = [
@@ -1066,11 +1130,15 @@ def main():
 	mgr = OpenRTM_aist.Manager.init(sys.argv)
 	mgr.setModuleInitProc(MyModuleInit)
 	mgr.activateManager()
-	mgr.runManager(True)
-
 	global comp
-	comp.mainloop()
-	mgr.shutdown()
+	if comp.is_need_gui():
+		print 'GUI'
+		mgr.runManager(True)
+		comp.mainloop()
+		mgr.shutdown()
+	else:
+		print 'NO GUI'
+		mgr.runManager(False)
 
 if __name__ == "__main__":
 	main()
