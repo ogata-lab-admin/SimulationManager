@@ -374,19 +374,31 @@ class SimulationManager(OpenRTM_aist.DataFlowComponentBase):
 			traceback.print_exc()
 			return RTC.RTC_ERROR
 
+		sys.stdout.write(' -- Waiting 1 seconds\n')
+		for i in range(0, 20):
+			sys.stdout.write('#')
+			sys.stdout.flush()
+			time.sleep(0.05)
+		sys.stdout.write('\n')
+
 		try:
-			pass
-			"""
 			if not len(self._rtsystem[0].strip()) == 0 and self._rtsystem[0] != '[]':
 				try:
-					ret = subprocess.call(['rtstart', self._rtsystem[0]])
-					sys.stdout.write('rtstart == %s\n' % ret)
+					sys.stdout.write(' - Starting RT System with %s\n' % self._rtsystem[0])
+
+					if sys.platform == 'win32':
+						ret = subprocess.call(['rtstart.bat', self._rtsystem[0]])
+					else:
+						ret = subprocess.call(['rtstart', self._rtsystem[0]])
+					sys.stdout.write(' -- rtstart == %s\n' % ret)
+
+
 
 				except:
 					sys.stdout.write(' - rtstart failed. Retry...\n')
 					traceback.print_exc()
 				time.sleep(1.0)
-			"""
+
 		except Exception ,e:
 			sys.stdout.write(' - Failed to start RTCs\n')
 			traceback.print_exc()
