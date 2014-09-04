@@ -9,7 +9,7 @@
 
 
 """
-import sys, yaml, os, traceback, subprocess, datetime
+import sys, yaml, os, traceback, subprocess, datetime, types
 import time
 sys.path.append(".")
 
@@ -336,6 +336,8 @@ class SimulationManager(OpenRTM_aist.DataFlowComponentBase):
 				#return RTC.RTC_ERROR
 
 			sync_rtcs = yaml.load(self._sync_rtcs[0])
+                        if type(sync_rtcs) != types.ListType:
+                                sync_rtcs = [sync_rtcs]
 			if sync_rtcs:
 				for r in sync_rtcs:
 					sys.stdout.write(' - Synchronize Request for RTC(%s)\n' % r)
@@ -354,10 +356,12 @@ class SimulationManager(OpenRTM_aist.DataFlowComponentBase):
 			sys.stdout.flush()
 			time.sleep(0.05)
 		sys.stdout.write('\n')
-		
+		count = 0
 		try:
-			if not len(self._rtsystem[0].strip()) == 0 and self._rtsystem[0] != '[]' and self._rtsystem[0] != 'None':
+			#if not len(self._rtsystem[0].strip()) == 0 and self._rtsystem[0] != '[]' and self._rtsystem[0] != 'None':
+			while not len(self._rtsystem[0].strip()) == 0 and self._rtsystem[0] != '[]' and self._rtsystem[0] != 'None':
 				try:
+                                        
 					sys.stdout.write(' - Building RT System with %s\n' % self._rtsystem[0])
 
 					if sys.platform == 'win32':
@@ -365,10 +369,18 @@ class SimulationManager(OpenRTM_aist.DataFlowComponentBase):
 					else:
 						ret = subprocess.call(['rtresurrect', self._rtsystem[0]])
 					sys.stdout.write(' -- rtresurrect == %s\n' % ret)
+                                        if ret == 0:
+                                                break
+                                        sys.stdout.write(' -- rtresurrect failed. Retry...\n')
+                                                
 				except:
 					sys.stdout.write(' -- rtresurrect failed. Retry...\n')
 					traceback.print_exc()
 				time.sleep(1.0)
+				count = count + 1
+				if count == 5:
+                                        sys.stdout.write(' -- building system failed. But proceeding setup.....')
+                                        break
 		except Exception ,e:
 			sys.stdout.write(' -- Failed to construct RTCs\n')
 			traceback.print_exc()
@@ -406,7 +418,8 @@ class SimulationManager(OpenRTM_aist.DataFlowComponentBase):
 
 		try:
 			print ' - simulation_start_on_activated : ', self._simulation_start_on_activated[0]
-			if self._simulation_start_on_activated[0] == 'true':
+                        flag = self._simulation_start_on_activated[0]
+			if flag == 'true' or flag == 'True' or flag == 'TRUE' :
 				self._simulation_turn = 0
 				print ' - Starting Simulation.' 
 				if not self._simulator._ptr().start() == ssr.RETVAL_OK:
