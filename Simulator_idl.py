@@ -85,6 +85,10 @@ Simulator._d_stop = ((), (omniORB.typeMapping["IDL:ssr/RETURN_VALUE:1.0"], ), No
 Simulator._d_spawnRobotRTC = (((omniORB.tcInternal.tv_string,0), (omniORB.tcInternal.tv_string,0)), (omniORB.typeMapping["IDL:ssr/RETURN_VALUE:1.0"], ), None)
 Simulator._d_spawnRangeRTC = (((omniORB.tcInternal.tv_string,0), (omniORB.tcInternal.tv_string,0)), (omniORB.typeMapping["IDL:ssr/RETURN_VALUE:1.0"], ), None)
 Simulator._d_spawnCameraRTC = (((omniORB.tcInternal.tv_string,0), (omniORB.tcInternal.tv_string,0)), (omniORB.typeMapping["IDL:ssr/RETURN_VALUE:1.0"], ), None)
+Simulator._d_spawnAccelerometerRTC = (((omniORB.tcInternal.tv_string,0), (omniORB.tcInternal.tv_string,0)), (omniORB.typeMapping["IDL:ssr/RETURN_VALUE:1.0"], ), None)
+Simulator._d_spawnGyroRTC = (((omniORB.tcInternal.tv_string,0), (omniORB.tcInternal.tv_string,0)), (omniORB.typeMapping["IDL:ssr/RETURN_VALUE:1.0"], ), None)
+Simulator._d_spawnDepthRTC = (((omniORB.tcInternal.tv_string,0), (omniORB.tcInternal.tv_string,0)), (omniORB.typeMapping["IDL:ssr/RETURN_VALUE:1.0"], ), None)
+Simulator._d_spawnObjectRTC = (((omniORB.tcInternal.tv_string,0), (omniORB.tcInternal.tv_string,0)), (omniORB.typeMapping["IDL:ssr/RETURN_VALUE:1.0"], ), None)
 Simulator._d_killRobotRTC = (((omniORB.tcInternal.tv_string,0), ), (omniORB.typeMapping["IDL:ssr/RETURN_VALUE:1.0"], ), None)
 Simulator._d_killAllRobotRTC = ((), (omniORB.typeMapping["IDL:ssr/RETURN_VALUE:1.0"], ), None)
 Simulator._d_getObjectPose = (((omniORB.tcInternal.tv_string,0), ), (omniORB.typeMapping["IDL:ssr/RETURN_VALUE:1.0"], omniORB.typeMapping["IDL:RTC/Pose3D:1.0"]), None)
@@ -125,6 +129,18 @@ class _objref_Simulator (CORBA.Object):
     def spawnCameraRTC(self, *args):
         return _omnipy.invoke(self, "spawnCameraRTC", _0_ssr.Simulator._d_spawnCameraRTC, args)
 
+    def spawnAccelerometerRTC(self, *args):
+        return _omnipy.invoke(self, "spawnAccelerometerRTC", _0_ssr.Simulator._d_spawnAccelerometerRTC, args)
+
+    def spawnGyroRTC(self, *args):
+        return _omnipy.invoke(self, "spawnGyroRTC", _0_ssr.Simulator._d_spawnGyroRTC, args)
+
+    def spawnDepthRTC(self, *args):
+        return _omnipy.invoke(self, "spawnDepthRTC", _0_ssr.Simulator._d_spawnDepthRTC, args)
+
+    def spawnObjectRTC(self, *args):
+        return _omnipy.invoke(self, "spawnObjectRTC", _0_ssr.Simulator._d_spawnObjectRTC, args)
+
     def killRobotRTC(self, *args):
         return _omnipy.invoke(self, "killRobotRTC", _0_ssr.Simulator._d_killRobotRTC, args)
 
@@ -149,7 +165,7 @@ class _objref_Simulator (CORBA.Object):
     def getSimulationTime(self, *args):
         return _omnipy.invoke(self, "getSimulationTime", _0_ssr.Simulator._d_getSimulationTime, args)
 
-    __methods__ = ["loadProject", "start", "pause", "resume", "stop", "spawnRobotRTC", "spawnRangeRTC", "spawnCameraRTC", "killRobotRTC", "killAllRobotRTC", "getObjectPose", "setObjectPose", "synchronizeRTC", "getSynchronizingRTCs", "getSimulationTimeStep", "getSimulationTime"] + CORBA.Object.__methods__
+    __methods__ = ["loadProject", "start", "pause", "resume", "stop", "spawnRobotRTC", "spawnRangeRTC", "spawnCameraRTC", "spawnAccelerometerRTC", "spawnGyroRTC", "spawnDepthRTC", "spawnObjectRTC", "killRobotRTC", "killAllRobotRTC", "getObjectPose", "setObjectPose", "synchronizeRTC", "getSynchronizingRTCs", "getSimulationTimeStep", "getSimulationTime"] + CORBA.Object.__methods__
 
 omniORB.registerObjref(Simulator._NP_RepositoryId, _objref_Simulator)
 _0_ssr._objref_Simulator = _objref_Simulator
@@ -161,62 +177,12 @@ class Simulator (PortableServer.Servant):
     _NP_RepositoryId = _0_ssr.Simulator._NP_RepositoryId
 
 
-    _omni_op_d = {"loadProject": _0_ssr.Simulator._d_loadProject, "start": _0_ssr.Simulator._d_start, "pause": _0_ssr.Simulator._d_pause, "resume": _0_ssr.Simulator._d_resume, "stop": _0_ssr.Simulator._d_stop, "spawnRobotRTC": _0_ssr.Simulator._d_spawnRobotRTC, "spawnRangeRTC": _0_ssr.Simulator._d_spawnRangeRTC, "spawnCameraRTC": _0_ssr.Simulator._d_spawnCameraRTC, "killRobotRTC": _0_ssr.Simulator._d_killRobotRTC, "killAllRobotRTC": _0_ssr.Simulator._d_killAllRobotRTC, "getObjectPose": _0_ssr.Simulator._d_getObjectPose, "setObjectPose": _0_ssr.Simulator._d_setObjectPose, "synchronizeRTC": _0_ssr.Simulator._d_synchronizeRTC, "getSynchronizingRTCs": _0_ssr.Simulator._d_getSynchronizingRTCs, "getSimulationTimeStep": _0_ssr.Simulator._d_getSimulationTimeStep, "getSimulationTime": _0_ssr.Simulator._d_getSimulationTime}
+    _omni_op_d = {"loadProject": _0_ssr.Simulator._d_loadProject, "start": _0_ssr.Simulator._d_start, "pause": _0_ssr.Simulator._d_pause, "resume": _0_ssr.Simulator._d_resume, "stop": _0_ssr.Simulator._d_stop, "spawnRobotRTC": _0_ssr.Simulator._d_spawnRobotRTC, "spawnRangeRTC": _0_ssr.Simulator._d_spawnRangeRTC, "spawnCameraRTC": _0_ssr.Simulator._d_spawnCameraRTC, "spawnAccelerometerRTC": _0_ssr.Simulator._d_spawnAccelerometerRTC, "spawnGyroRTC": _0_ssr.Simulator._d_spawnGyroRTC, "spawnDepthRTC": _0_ssr.Simulator._d_spawnDepthRTC, "spawnObjectRTC": _0_ssr.Simulator._d_spawnObjectRTC, "killRobotRTC": _0_ssr.Simulator._d_killRobotRTC, "killAllRobotRTC": _0_ssr.Simulator._d_killAllRobotRTC, "getObjectPose": _0_ssr.Simulator._d_getObjectPose, "setObjectPose": _0_ssr.Simulator._d_setObjectPose, "synchronizeRTC": _0_ssr.Simulator._d_synchronizeRTC, "getSynchronizingRTCs": _0_ssr.Simulator._d_getSynchronizingRTCs, "getSimulationTimeStep": _0_ssr.Simulator._d_getSimulationTimeStep, "getSimulationTime": _0_ssr.Simulator._d_getSimulationTime}
 
 Simulator._omni_skeleton = Simulator
 _0_ssr__POA.Simulator = Simulator
 omniORB.registerSkeleton(Simulator._NP_RepositoryId, Simulator)
 del Simulator
-__name__ = "ssr"
-
-# interface SimulatedRobot
-_0_ssr._d_SimulatedRobot = (omniORB.tcInternal.tv_objref, "IDL:ssr/SimulatedRobot:1.0", "SimulatedRobot")
-omniORB.typeMapping["IDL:ssr/SimulatedRobot:1.0"] = _0_ssr._d_SimulatedRobot
-_0_ssr.SimulatedRobot = omniORB.newEmptyClass()
-class SimulatedRobot :
-    _NP_RepositoryId = _0_ssr._d_SimulatedRobot[1]
-
-    def __init__(self, *args, **kw):
-        raise RuntimeError("Cannot construct objects of this type.")
-
-    _nil = CORBA.Object._nil
-
-
-_0_ssr.SimulatedRobot = SimulatedRobot
-_0_ssr._tc_SimulatedRobot = omniORB.tcInternal.createTypeCode(_0_ssr._d_SimulatedRobot)
-omniORB.registerType(SimulatedRobot._NP_RepositoryId, _0_ssr._d_SimulatedRobot, _0_ssr._tc_SimulatedRobot)
-
-# SimulatedRobot operations and attributes
-SimulatedRobot._d_getJointTagNames = ((), (omniORB.typeMapping["IDL:ssr/RETURN_VALUE:1.0"], omniORB.typeMapping["IDL:ssr/StringSeq:1.0"]), None)
-
-# SimulatedRobot object reference
-class _objref_SimulatedRobot (CORBA.Object):
-    _NP_RepositoryId = SimulatedRobot._NP_RepositoryId
-
-    def __init__(self):
-        CORBA.Object.__init__(self)
-
-    def getJointTagNames(self, *args):
-        return _omnipy.invoke(self, "getJointTagNames", _0_ssr.SimulatedRobot._d_getJointTagNames, args)
-
-    __methods__ = ["getJointTagNames"] + CORBA.Object.__methods__
-
-omniORB.registerObjref(SimulatedRobot._NP_RepositoryId, _objref_SimulatedRobot)
-_0_ssr._objref_SimulatedRobot = _objref_SimulatedRobot
-del SimulatedRobot, _objref_SimulatedRobot
-
-# SimulatedRobot skeleton
-__name__ = "ssr__POA"
-class SimulatedRobot (PortableServer.Servant):
-    _NP_RepositoryId = _0_ssr.SimulatedRobot._NP_RepositoryId
-
-
-    _omni_op_d = {"getJointTagNames": _0_ssr.SimulatedRobot._d_getJointTagNames}
-
-SimulatedRobot._omni_skeleton = SimulatedRobot
-_0_ssr__POA.SimulatedRobot = SimulatedRobot
-omniORB.registerSkeleton(SimulatedRobot._NP_RepositoryId, SimulatedRobot)
-del SimulatedRobot
 __name__ = "ssr"
 
 #

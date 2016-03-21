@@ -64,6 +64,7 @@ simulatortest_spec = ["implementation_id", "SimulationManager",
 		 "conf.default.robots", "{}",
 		 "conf.default.ranges", "{}",
 		 "conf.default.cameras", "{}", 
+		 "conf.default.objects", "{}",
 		 "conf.default.sync_rtcs", "[]",
 		 "conf.default.simulation_times", "0",
 		 "conf.default.simulation_end_condition", "timespan",
@@ -116,6 +117,7 @@ class SimulationManager(OpenRTM_aist.DataFlowComponentBase):
 		self._robots = ["{}"]
 		self._cameras = ["{}"]
 		self._ranges = ["{}"]
+		self._objects = ["{}"]
 		self._sync_rtcs = ["[]"]
 		self._simulation_times = [1]
 		self._simulation_end_condition = ["timespan"]
@@ -142,6 +144,7 @@ class SimulationManager(OpenRTM_aist.DataFlowComponentBase):
 		self.bindParameter("robots", self._robots, "{}")
 		self.bindParameter("cameras", self._cameras, "{}")
 		self.bindParameter("ranges", self._ranges, "{}")
+		self.bindParameter("objects", self._objects, "{}")
 		self.bindParameter("sync_rtcs", self._sync_rtcs, "[]")
 		self.bindParameter("simulation_times", self._simulation_times, "1")
 		self.bindParameter("simulation_end_condition", self._simulation_end_condition, "timespan")
@@ -328,6 +331,21 @@ class SimulationManager(OpenRTM_aist.DataFlowComponentBase):
 			sys.stdout.write(' - Failed to spawn RTCs\n')
 			traceback.print_exc()
 			return RTC.RTC_ERROR
+
+
+		try:
+			objs = yaml.load(self._objects[0])
+			if objs:
+				for o, a in objs.items():
+					sys.stdout.write(' - Spawning Object: %s?%s\n' % (o,a))
+					if not self._simulator._ptr().spawnObjectRTC(o, a) == ssr.RETVAL_OK:
+						sys.stdout.write(' - Failed\n')
+						#return RTC.RTC_ERROR
+
+		except Exception, e:
+			sys.stdout.write(' - Failed to spawn RTCs\n')
+			traceback.print_exc()
+			return RTC.RTC_ERROR
 		
 		try:
 			sys.stdout.write(' - Synchronize Request of SimulationManager(%s)\n' % self._fullpath_to_self[0])
@@ -460,7 +478,7 @@ class SimulationManager(OpenRTM_aist.DataFlowComponentBase):
 	#	#
 	def onExecute(self, ec_id):
 		if ec_id != 0:
-			sys.stdout.write(' - exec by %s\n' % ec_id)
+			# sys.stdout.write(' - exec by %s\n' % ec_id)
 			# "Synchronizing EC"
 			if self._simulation_end_condition[0] == 'timespan':
 				retval, current_time = self._simulator._ptr().getSimulationTime()
