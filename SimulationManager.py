@@ -676,6 +676,11 @@ class SimulationManager(OpenRTM_aist.DataFlowComponentBase):
 	def on_spawn_camera(self):
 		self._simulator._ptr().spawnCameraRTC(self.cameraEntryBuffer.get(), self.cameraArgEntryBuffer.get())
 
+	def on_spawn_object(self):
+		self._simulator._ptr().spawnObjectRTC(self.objectEntryBuffer.get(), self.objectArgEntryBuffer.get())
+
+
+
 	def on_synch(self):
 		rtcpath = self.synchRTCEntryBuffer.get()
 		print rtcpath
@@ -702,6 +707,7 @@ class SimulationManager(OpenRTM_aist.DataFlowComponentBase):
 		robotRTCs  = {}
 		rangeRTCs  = {}
 		cameraRTCs = {}
+		objectRTCs = {}
 		otherRTCs = {}
 		try:
 			clientCorbaNaming = OpenRTM_aist.CorbaNaming(OpenRTM_aist.Manager.instance().getORB(), clientNS)
@@ -988,6 +994,23 @@ class SimulationManager(OpenRTM_aist.DataFlowComponentBase):
 		cameraArgEntry.grid(column=3, row=_row)
 		spawnCameraButton = tk.Button(setupRTCFrame, text="SpawnCamera", command=self.on_spawn_camera)
 		spawnCameraButton.grid(column=4, row=_row)
+
+
+		_row = 4
+		objectLabel = tk.Label(setupRTCFrame, text="Object Object Name")
+		objectLabel.grid(row=_row, column=0)
+		self.objectEntryBuffer = tk.StringVar()
+		self.objectEntryBuffer.set("ObjectRTC Object Name")
+		objectEntry = tk.Entry(setupRTCFrame, textvariable=self.objectEntryBuffer)
+		objectEntry.grid(column=1, row=_row)
+		objectArgLabel = tk.Label(setupRTCFrame, text="Argument")
+		objectArgLabel.grid(column=2, row=_row)
+		self.objectArgEntryBuffer = tk.StringVar()
+		self.objectArgEntryBuffer.set("")
+		objectArgEntry = tk.Entry(setupRTCFrame, textvariable=self.objectArgEntryBuffer)
+		objectArgEntry.grid(column=3, row=_row)
+		spawnObjectButton = tk.Button(setupRTCFrame, text="SpawnObject", command=self.on_spawn_object)
+		spawnObjectButton.grid(column=4, row=_row)
 
 		synchFrame = tk.LabelFrame(root, text="Synchronization")
 		synchFrame.grid(padx=5, pady=5, ipadx=5, ipady=5, row=2, columnspan=1, column=0, sticky=tk.N+tk.E+tk.S+tk.W)
