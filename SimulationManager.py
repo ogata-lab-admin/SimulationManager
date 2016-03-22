@@ -77,9 +77,9 @@ simulatortest_spec = ["implementation_id", "SimulationManager",
 		 "conf.__widget__.simulation_start_on_activated", "radio",
 		 "conf.__widget__.simulation_setup_on_activated", "radio",
 		 # Constraints
-		 "conf.__constraints__.simulation_end_condition", "timespan,rtcdeactivated,rtcactivated,rtcerror",
-		 "conf.__constraints__.simulation_start_on_activated", "true, false",
-		 "conf.__constraints__.simulation_setup_on_activated", "true, false",
+		 "conf.__constraints__.simulation_end_condition", "(timespan,rtcdeactivated,rtcactivated,rtcerror)",
+		 "conf.__constraints__.simulation_start_on_activated", "(true,false)",
+		 "conf.__constraints__.simulation_setup_on_activated", "(true,false)",
 		 ""]
 # </rtc-template>
 
